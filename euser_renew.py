@@ -929,7 +929,15 @@ def send_telegram(message: str, config: GlobalConfig):
 
 
 def send_wechat(message: str, config: GlobalConfig):
-    """发送微信推送（表单格式，自动移除HTML标签）"""
+    """发送微信推送（WXPush 格式）
+
+    按 WXPush 自带测试页的格式发（已验证可用的写法，见 cf-best-github）：
+    JSON body {"title", "content", "message"}，token 只放 Authorization 头里
+    （裸 token，不带 Bearer 前缀、不放 body）；旧版把 token 放 body 里、
+    不带 Authorization 头，在部署的 WXPush 上会 403。
+    另外 wx.djcf.pp.ua 前面有 Cloudflare，默认 python-requests 的 UA 会被
+    浏览器完整性检查拦下（403 error code: 1010），必须用浏览器 UA。
+    """
     if not config.wechat_api_url or not config.wechat_auth_token:
         logger.debug("未配置微信推送，跳过")
         return
@@ -937,19 +945,24 @@ def send_wechat(message: str, config: GlobalConfig):
     # 将HTML消息转换为纯文本（移除所有HTML标签）
     plain_message = re.sub(r'<[^>]+>', '', message)
 
-    # 准备表单数据
-    data = {
+    headers = {
+        "Authorization": config.wechat_auth_token,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    }
+    payload = {
         "title": "EUserv 续期通知",
         "content": plain_message,
-        "token": config.wechat_auth_token
+        "message": plain_message,
     }
-    logger.debug(f"微信推送请求数据: {data}")
 
     try:
-        response = requests.post(config.wechat_api_url, data=data, timeout=10)
+        response = requests.post(config.wechat_api_url, json=payload,
+                                 headers=headers, timeout=10)
         if response.status_code == 200:
             logger.info("✅ 微信推送发送成功")
         else:
+            # 403 时把响应体打出来：{"msg":"Invalid token"} 才是 token 错；
+            # "error code: 1010" 就是 CF 按 UA 拦的
             logger.error(f"❌ 微信推送失败: {response.status_code} - {response.text}")
     except Exception as e:
         logger.error(f"❌ 微信推送异常: {e}", exc_info=True)
