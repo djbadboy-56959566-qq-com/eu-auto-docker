@@ -2,7 +2,7 @@ name: EUserv 续期
 
 on:
   schedule:
-    - cron: '0 0 7,8 * *'  # UTC时间每个月7号和8号的00:00，实际上会在北京时间的7号和8号早上8点触发
+    - cron: '0 0 7,8,9 * *'  # UTC时间每个月7、8、9号的00:00，实际上会在北京时间的7、8、9号早上8点触发
   workflow_dispatch:  # 允许手动触发工作流
 
 jobs:
@@ -31,4 +31,6 @@ jobs:
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           SKIP_CONTRACTS: ${{ secrets.SKIP_CONTRACTS }}
           DEBUG: ${{ secrets.DEBUG }}
+          WECHAT_API_URL: ${{ secrets.WECHAT_API_URL }}
+          WECHAT_AUTH_TOKEN: ${{ secrets.WECHAT_AUTH_TOKEN }}
         run: python euser_renew.py
